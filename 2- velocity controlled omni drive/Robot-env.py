@@ -8,8 +8,11 @@ class RobotEnv(gym.Env):
         """
         Must define self.acion_space and self.observation_space  
         """
-        self.action_space = Box(low = np.array([-0.22,-0.22,-2.84]),  high=np.array([0.22,0.22,2.84]))
-        self.observation_space = Box(low = np.array([-6.58,-4.63,-math.pi]), high=np.array([6.58,4.63,math.pi]))
+        self.action_space = Box(low = np.array([-0.22,-0.22,-2.84]), #lower bounds for vel_x,vel_y,omega
+                                     high=np.array([0.22,0.22,2.84]),dtype=np.float32) #upper bounds for vel_x,vel_y,omega
+        
+        self.observation_space = Box(low = np.array([-6.58,-4.63,-math.pi]), #lower bounds of state
+                                      high=np.array([6.58,4.63,math.pi])) #upper bounds of state
         self.epi_len = 2500
 
 
