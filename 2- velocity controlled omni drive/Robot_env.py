@@ -48,17 +48,19 @@ class RobotEnv(gym.Env):
         kc = np.array([3,3])
         self.lb_hard = [-6.58,-4.63]
         self.ub_hard = [6.58,4.63]
-        t1 = [0,self.time_int]
+        t1 = np.linspace(0,self.time_int)
         self.phi_L,self.phi_U,self.Lb,self.Ub = [],[],[],[]
 
-        for _ in range(self.epi_len):
-            tr, phi_Lo = odeint(self.bound, self.phi_ini_L, t1, args=(self.lb_soft, self.ub_hard, mu, kc))
+        for i in range(self.epi_len):
+            tr,phi_Lo = odeint(self.bound, self.phi_ini_L, t1, args=(self.lb_soft[i,:], self.ub_hard, mu, kc))
+            print(phi_Lo)
+            print(phi_Lo.shape())
             phi_sol_L = np.abs(phi_Lo) #this condition to be checked i.e,psi(modification signal) is always positive
-            tr, phi_U = odeint(self.bound, self.phi_ini_U, t1, args=(self.lb_hard, self.ub_soft, mu, kc))
+            tr, phi_U = odeint(self.bound, self.phi_ini_U, t1, args=(self.lb_hard, self.ub_soft[i,:], mu, kc))
             phi_sol_U = np.abs(phi_U) #this condition to be checked i.e,psi(modification signal) is always positive
             v = 10
-            lower_bo = np.log(np.exp(v * (self.lb_soft - phi_sol_L)) + np.exp(v * self.lb_hard)) / v
-            upper_bo = -np.log(np.exp(-v * (self.ub_soft + phi_sol_U)) + np.exp(-v * self.ub_hard)) / v
+            lower_bo = np.log(np.exp(v * (self.lb_soft[i,:] - phi_sol_L)) + np.exp(v * self.lb_hard)) / v
+            upper_bo = -np.log(np.exp(-v * (self.ub_soft[i,:] + phi_sol_U)) + np.exp(-v * self.ub_hard)) / v
             self.phi_ini_L = phi_sol_L #will change according to comment in line 55
             self.phi_ini_U = phi_sol_U
             # self.phi_L.append(phi_sol_L)
