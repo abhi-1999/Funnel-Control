@@ -1,7 +1,7 @@
 import numpy as np
 import math
-import gym
-from gym.spaces import Box
+import gymnasium as gym
+from gymnasium.spaces import Box
 from scipy.integrate import odeint
 
 class RobotEnv(gym.Env):
@@ -10,10 +10,10 @@ class RobotEnv(gym.Env):
         Must define self.acion_space and self.observation_space  
         """
         self.action_space = Box(low = np.array([-0.22,-0.22,-2.84]), #lower bounds for vel_x,vel_y,omega
-                                     high=np.array([0.22,0.22,2.84]),dtype=np.float32) #upper bounds for vel_x,vel_y,omega
+                                     high=np.array([0.22,0.22,2.84])) #upper bounds for vel_x,vel_y,omega
         
         self.observation_space = Box(low = np.array([-6.58,-4.63,-math.pi]), #lower bounds of state
-                                      high=np.array([6.58,4.63,math.pi])) #upper bounds of state
+                                      high=np.array([6.58,4.63,math.pi]),dtype=np.float64) #upper bounds of state
         self.epi_len = 2500
 
     
@@ -46,18 +46,16 @@ class RobotEnv(gym.Env):
         #creating final funnel
         mu = np.array([3,3])
         kc = np.array([3,3])
-        self.lb_hard = [-6.58,-4.63]
-        self.ub_hard = [6.58,4.63]
+        self.lb_hard = np.array([-6.58,-4.63])
+        self.ub_hard = np.array([6.58,4.63])
         t1 = np.linspace(0,self.time_int)
         self.phi_L,self.phi_U,self.Lb,self.Ub = [],[],[],[]
 
         for i in range(self.epi_len):
-            tr,phi_Lo = odeint(self.bound, self.phi_ini_L, t1, args=(self.lb_soft[i,:], self.ub_hard, mu, kc))
-            print(phi_Lo)
-            print(phi_Lo.shape())
-            phi_sol_L = np.abs(phi_Lo) #this condition to be checked i.e,psi(modification signal) is always positive
-            tr, phi_U = odeint(self.bound, self.phi_ini_U, t1, args=(self.lb_hard, self.ub_soft[i,:], mu, kc))
-            phi_sol_U = np.abs(phi_U) #this condition to be checked i.e,psi(modification signal) is always positive
+            phi_Lo = odeint(self.bound, self.phi_ini_L, t1, args=(self.lb_soft[i,:], self.ub_hard, mu, kc))
+            phi_sol_L = np.abs(phi_Lo[-1]) #this condition to be checked i.e,psi(modification signal) is always positive
+            phi_U = odeint(self.bound, self.phi_ini_U, t1, args=(self.lb_hard, self.ub_soft[i,:], mu, kc))
+            phi_sol_U = np.abs(phi_U[-1]) #this condition to be checked i.e,psi(modification signal) is always positive
             v = 10
             lower_bo = np.log(np.exp(v * (self.lb_soft[i,:] - phi_sol_L)) + np.exp(v * self.lb_hard)) / v
             upper_bo = -np.log(np.exp(-v * (self.ub_soft[i,:] + phi_sol_U)) + np.exp(-v * self.ub_hard)) / v
@@ -114,12 +112,13 @@ class RobotEnv(gym.Env):
             done = True  
 
         info = {}
-        return self.state, reward, done, info
+        truncated = done
+        return self.state, reward, done, truncated, info
     
     def render(self, mode="human"):
         pass
 
-    def reset(self):
+    def reset(self,seed = None,options=None):
 
         self.x = -3.19
         self.y = 3
@@ -128,8 +127,9 @@ class RobotEnv(gym.Env):
 
         self.ep_t = 0
 
+        info={}
 
-        return self.state
+        return self.state,info
     
     def  close(self):
         pass
