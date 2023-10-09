@@ -133,7 +133,7 @@ class RobotEnv(gym.Env):
 
         info = {}
         truncated = done
-        return self.state, reward, done, truncated, info
+        return self.state, reward.item(), done, truncated, info
 
     def render(self, mode="human"):
         pass
