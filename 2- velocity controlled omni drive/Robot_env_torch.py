@@ -15,7 +15,8 @@ class RobotEnv(gym.Env):
 
         self.observation_space = Box(low = np.array([-6.58,-4.63,-math.pi]), #lower bounds of state
                                       high=np.array([6.58,4.63,math.pi]),dtype=np.float64) #upper bounds of state
-        self.epi_len = int(input("EpiLen"))
+        # self.epi_len = int(input("EpiLen"))
+        self.epi_len = 10
 
 
         #states
@@ -38,7 +39,12 @@ class RobotEnv(gym.Env):
         ini_width = 0.2  # higher the value more is the initial funnel width
         rho_f = torch.tensor([0.2, 0.2], dtype=torch.float64)
         rho_0 = (torch.abs(torch.tensor([self.x, self.y], dtype=torch.float64) - self.state_d[0, :]) + ini_width).clone().detach()
-        gamma = [(rho_0 - rho_f) * torch.exp(-l * self.time_int *  t) + rho_f for t in range(self.epi_len)]
+        diff = rho_0 - rho_f
+
+        gamma = torch.tensor([])
+        for _ in range(self.epi_len):
+            x = diff * torch.exp(-l*self.time_int*_) + rho_f
+            gamma = torch.cat((gamma, x.unsqueeze(0)))
 
         #gamma_tensor = (rho_0.unsqueeze(0) - rho_f) * torch.exp(-l * time_int * torch.arange(epi_len, dtype=torch.float64).unsqueeze(1)) + rho_f
         self.lb_soft = self.state_d - gamma
@@ -51,14 +57,14 @@ class RobotEnv(gym.Env):
         kc = torch.tensor([3.0, 3.0], dtype=torch.float64)
         self.lb_hard = torch.tensor([-6.58, -4.63], dtype=torch.float64)
         self.ub_hard = torch.tensor([6.58, 4.63], dtype=torch.float64)
-        t1 = torch.linspace(0, self.time_int)
+        t1 = torch.linspace(0, self.time_int,100)
         self.phi_L, self.phi_U, self.Lb, self.Ub = [], [], [], []
         self.j = []
         for i in range(self.epi_len):
             phi_Lo = odeint(self.bound, self.phi_ini_L, t1, args=(self.lb_soft[i, :], self.ub_hard, mu, kc))
-            phi_sol_L = torch.abs(phi_Lo[-1])  # this condition to be checked i.e, psi(modification signal) is always positive
+            phi_sol_L = torch.abs(torch.tensor(phi_Lo[-1]))  # this condition to be checked i.e, psi(modification signal) is always positive
             phi_U = odeint(self.bound, self.phi_ini_U, t1, args=(self.lb_hard, self.ub_soft[i, :], mu, kc))
-            phi_sol_U = torch.abs(phi_U[-1])  # this condition to be checked i.e, psi(modification signal) is always positive
+            phi_sol_U = torch.abs(torch.tensor(phi_U[-1]))  # this condition to be checked i.e, psi(modification signal) is always positive
             v = 10.0
             lower_bo = torch.log(torch.exp(v * (self.lb_soft[i, :] - phi_sol_L)) + torch.exp(v * self.lb_hard)) / v
             upper_bo = -torch.log(torch.exp(-v * (self.ub_soft[i, :] + phi_sol_U)) + torch.exp(-v * self.ub_hard)) / v
@@ -86,7 +92,7 @@ class RobotEnv(gym.Env):
         self.x = x_old + vel_x * self.time_int
         self.y = y_old + vel_y * self.time_int
         self.theta = theta_old + omega * self.time_int
-        self.state = torch.tensor([self.x, self.y, self.theta], dtype=torch.float64)
+        self.state = np.array([self.x, self.y, self.theta])
 
         # To keep the angle theta between -pi to pi
         if (self.theta > math.pi or self.theta < -math.pi):
@@ -137,7 +143,7 @@ class RobotEnv(gym.Env):
         self.x = -3.19
         self.y = 3
         self.theta = 0
-        self.state = torch.tensor([self.x, self.y, self.theta], dtype=torch.float64)
+        self.state = np.array([self.x, self.y, self.theta])
         self.ep_t = 0
         info = {}
         return self.state, info
