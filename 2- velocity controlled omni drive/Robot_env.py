@@ -27,7 +27,7 @@ class RobotEnv(gym.Env):
         #RL constants
         self.ep_t = 0
 
-        self.time_int = 25/self.epi_len
+        self.time_int = 0.01
         # self.t2 = self.timestep*self.time_int
         #reference trajectory
         ref_trajectory=[[-1.5+5.8*math.cos(0.24*self.time_int*t+1.5), 5.8*math.sin(0.24*t*self.time_int+1.5)] for t in range(self.epi_len)]
