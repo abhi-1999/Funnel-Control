@@ -15,7 +15,7 @@ class RobotEnv(gym.Env):
 
         self.observation_space = Box(low = np.array([-6.58,-4.63,-math.pi]), #lower bounds of state
                                       high=np.array([6.58,4.63,math.pi]),dtype=np.float64) #upper bounds of state
-        self.epi_len = 100
+        self.epi_len = int(input("EpiLen"))
 
 
         #states
@@ -34,23 +34,23 @@ class RobotEnv(gym.Env):
         self.state_d = torch.tensor(ref_trajectory, dtype=torch.float64)
 
         # Funnel for soft constraint currently values are according to paper
-        l = torch.tensor([0.7, 0.7])
+        l = torch.tensor([0.7, 0.7], dtype=torch.float64)
         ini_width = 0.2  # higher the value more is the initial funnel width
-        rho_f = torch.tensor([0.2, 0.2])
-        rho_0 = (torch.abs(torch.tensor([self.x, self.y]) - self.state_d[0, :]) + ini_width).clone().detach()
+        rho_f = torch.tensor([0.2, 0.2], dtype=torch.float64)
+        rho_0 = (torch.abs(torch.tensor([self.x, self.y], dtype=torch.float64) - self.state_d[0, :]) + ini_width).clone().detach()
         gamma = [(rho_0 - rho_f) * torch.exp(-l * self.time_int *  t) + rho_f for t in range(self.epi_len)]
 
         #gamma_tensor = (rho_0.unsqueeze(0) - rho_f) * torch.exp(-l * time_int * torch.arange(epi_len, dtype=torch.float64).unsqueeze(1)) + rho_f
         self.lb_soft = self.state_d - gamma
         self.ub_soft = self.state_d + gamma
-        self.phi_ini_L = torch.tensor([0.0, 0.0])
-        self.phi_ini_U = torch.tensor([0.0, 0.0])
+        self.phi_ini_L = torch.tensor([0.0, 0.0], dtype=torch.float64)
+        self.phi_ini_U = torch.tensor([0.0, 0.0], dtype=torch.float64)
 
         # Creating final funnel
-        mu = torch.tensor([3.0, 3.0])
-        kc = torch.tensor([3.0, 3.0])
-        self.lb_hard = torch.tensor([-6.58, -4.63])
-        self.ub_hard = torch.tensor([6.58, 4.63])
+        mu = torch.tensor([3.0, 3.0], dtype=torch.float64)
+        kc = torch.tensor([3.0, 3.0], dtype=torch.float64)
+        self.lb_hard = torch.tensor([-6.58, -4.63], dtype=torch.float64)
+        self.ub_hard = torch.tensor([6.58, 4.63], dtype=torch.float64)
         t1 = torch.linspace(0, self.time_int)
         self.phi_L, self.phi_U, self.Lb, self.Ub = [], [], [], []
         self.j = []
@@ -93,20 +93,33 @@ class RobotEnv(gym.Env):
             self.theta = ((self.theta + math.pi) % (2 * math.pi)) - math.pi
 
         #check if new position is within hard constraint
+        x_min,y_min = self.Lb[self.ep_t]
+        x_max,y_max = self.Ub[self.ep_t]
+
+        Rew_max = 100
         if self.lb_hard[0] <= self.x <= self.ub_hard[0] and self.lb_hard[1] <= self.y <= self.ub_hard[1] :
-            Rew_max = 100
+            
             #check if within funnel and reward accordingly
-            x_min,y_min = self.Lb[self.ep_t]
-            x_max,y_max = self.Ub[self.ep_t]
-            if (x_min <= self.x <= x_max and y_min <= self.y <= y_max):
-                reward = 2
-            else:
-                reward = -10
+
+ 
+
+            robust1 = Rew_max - ((self.x - (x_min + x_max)/2)**2)*(4*Rew_max/((x_max-x_min)**2))
+            robust2 = Rew_max - ((self.y - (y_min + y_max)/2)**2)*(4*Rew_max/((y_max-y_min)**2))
+            reward = np.clip(min(robust1, robust2), -10,Rew_max)
         else:
             #terminate the episode or restart the episode?
             reward = -100
             done = True
 
+        self.ep_t +=1
+
+        if self.ep_t == self.epi_len:
+            done = True
+        info ={}
+        info['x_min'] = x_min
+        info['x_max'] = x_max
+        info['y_min'] = y_min
+        info['y_max'] = y_max
         self.ep_t +=1
 
         if self.ep_t == self.epi_len:

@@ -19,8 +19,12 @@ register(
 #vec_env = make_vec_env(Robot_env.RobotEnv, n_envs=1)
 # env = gym.make("RobotEnv-v0")
 env = make_vec_env("RobotEnv-v0", n_envs=2, seed=0)
-model = SAC("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard_sac_100EpiLen/")
 
-
-model.learn(total_timesteps=100 * 100000)
-model.save("./model/model_sac_100EpiLen")
+algorithm_name = input("algorithm name: ")
+EpiLen = input("Episode Length: ")
+if algorithm_name=="PPO":
+    model = PPO("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+EpiLen+"EpiLen/")
+elif algorithm_name=="SAC":
+    model = SAC("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+EpiLen+"EpiLen/")
+model.learn(total_timesteps=int(EpiLen)*100000)
+model.save("./models/"+algorithm_name+"/model_"+algorithm_name+"_"+EpiLen+"EpiLen")
