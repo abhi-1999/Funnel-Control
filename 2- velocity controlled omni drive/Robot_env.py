@@ -4,6 +4,7 @@ import gymnasium as gym
 from gymnasium.spaces import Box
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
+
 class RobotEnv(gym.Env):
     def __init__(self, **kwargs):
         """
@@ -16,12 +17,14 @@ class RobotEnv(gym.Env):
         self.observation_space = Box(low = np.array([-6.58,-4.63,-math.pi]), #lower bounds of state
                                       high=np.array([6.58,4.63,math.pi]),dtype=np.float64) #upper bounds of state
         self.epi_len = kwargs.get('epi_len')
+        #self.epi_len = 20
 
 
         #states
-        self.x = -3.19
+        self.x = -1.089
         self.y = 3
         self.theta = 0
+
         self.state = np.array([self.x,self.y,self.theta])
 
         #RL constants
@@ -30,7 +33,7 @@ class RobotEnv(gym.Env):
         self.time_int = 0.01
         # self.t2 = self.timestep*self.time_int
         #reference trajectory
-        ref_trajectory=[[-1.5+5.8*math.cos(0.24*self.time_int*t+1.5), 5.8*math.sin(0.24*t*self.time_int+1.5)] for t in range(self.epi_len)]
+        ref_trajectory=[[-1.5+5.8*math.cos(0.24*self.time_int*t+1.5), 3*math.sin(0.24*t*self.time_int+1.5)] for t in range(self.epi_len)]
         self.state_d = np.array(ref_trajectory)
 
         #Funnel for soft constraint currently values are according to paper
@@ -129,13 +132,14 @@ class RobotEnv(gym.Env):
 
     def reset(self,seed = None,options=None):
 
-        self.x = -3.19
+        self.x = -1.089
         self.y = 3
         self.theta = 0
+
         self.state = np.array([self.x,self.y,self.theta])
 
         self.ep_t = 0
-        
+
         x_max,y_max = self.Ub[self.ep_t]
         x_min,y_min = self.Lb[self.ep_t]
         info ={}
