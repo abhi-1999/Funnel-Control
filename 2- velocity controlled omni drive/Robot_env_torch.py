@@ -140,7 +140,14 @@ class RobotEnv(gym.Env):
         self.theta = 0
         self.state = np.array([self.x, self.y, self.theta])
         self.ep_t = 0
-        info = {}
+        x_max,y_max = self.Ub[self.ep_t]
+        x_min,y_min = self.Lb[self.ep_t]
+        info ={}
+        info['x_min'] = x_min
+        info['x_max'] = x_max
+        info['y_min'] = y_min
+        info['y_max'] = y_max
+
         return self.state, info
 
     def close(self):
