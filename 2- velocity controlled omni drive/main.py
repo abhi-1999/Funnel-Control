@@ -8,23 +8,37 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from gymnasium.envs.registration import register
 # import Robot_env
 
-register(
-    # unique identifier for the env `name-version`
-    id="RobotEnv-v0",
-    # path to the class for creating the env
-    # Note: entry_point also accept a class as input (and not only a string)
-    entry_point="Robot_env:RobotEnv",
-)
-# Instantiate the env
-#vec_env = make_vec_env(Robot_env.RobotEnv, n_envs=1)
-# env = gym.make("RobotEnv-v0")
-env = make_vec_env("RobotEnv-v0", n_envs=2, seed=0)
+Use_torch = int(input("want to use torch (0-no , 1-yes): "))
+if Use_torch == 0:
+    register(
+        # unique identifier for the env `name-version`
+        id="RobotEnv-v0",
+        # path to the class for creating the env
+        # Note: entry_point also accept a class as input (and not only a string)
+        entry_point="Robot_env:RobotEnv",
+    )
+else:
+    register(
+        # unique identifier for the env `name-version`
+        id="RobotEnv-v0",
+        # path to the class for creating the env
+        # Note: entry_point also accept a class as input (and not only a string)
+        entry_point="Robot_env_torch:RobotEnv",
+    )
+
+
+
+
 
 algorithm_name = input("algorithm name: ")
-EpiLen = input("Episode Length: ")
+EpiLen = int(input("Episode Length: "))
+
+env = make_vec_env("RobotEnv-v0", n_envs=12, seed=0, env_kwargs={"epi_len": EpiLen})
+#env = gym.make("RobotEnv-v0", env_kwargs={"epi_len": EpiLen})
 if algorithm_name=="PPO":
-    model = PPO("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+EpiLen+"EpiLen/")
+    model = PPO("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+str(EpiLen)+"EpiLen/")
 elif algorithm_name=="SAC":
-    model = SAC("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+EpiLen+"EpiLen/")
+    model = SAC("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+str(EpiLen)+"EpiLen/")
 model.learn(total_timesteps=int(EpiLen)*100000)
 model.save("./models/"+algorithm_name+"/model_"+algorithm_name+"_"+EpiLen+"EpiLen")
+

@@ -5,7 +5,7 @@ import gymnasium as gym
 from gymnasium.spaces import Box
 from scipy.integrate import odeint
 class RobotEnv(gym.Env):
-    def __init__(self):
+    def __init__(self,**kwargs):
         """
         Must define self.acion_space and self.observation_space
         """
@@ -16,7 +16,7 @@ class RobotEnv(gym.Env):
         self.observation_space = Box(low = np.array([-6.58,-4.63,-math.pi]), #lower bounds of state
                                       high=np.array([6.58,4.63,math.pi]),dtype=np.float64) #upper bounds of state
         # self.epi_len = int(input("EpiLen"))
-        self.epi_len = 10
+        self.epi_len = kwargs.get('epi_len')
 
 
         #states
@@ -126,12 +126,7 @@ class RobotEnv(gym.Env):
         info['x_max'] = x_max
         info['y_min'] = y_min
         info['y_max'] = y_max
-        self.ep_t +=1
-
-        if self.ep_t == self.epi_len:
-            done = True
-
-        info = {}
+        
         truncated = done
         return self.state, reward.item(), done, truncated, info
 

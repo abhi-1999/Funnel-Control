@@ -5,7 +5,7 @@ from gymnasium.spaces import Box
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 class RobotEnv(gym.Env):
-    def __init__(self):
+    def __init__(self, **kwargs):
         """
         Must define self.acion_space and self.observation_space
         """
@@ -15,7 +15,7 @@ class RobotEnv(gym.Env):
 
         self.observation_space = Box(low = np.array([-6.58,-4.63,-math.pi]), #lower bounds of state
                                       high=np.array([6.58,4.63,math.pi]),dtype=np.float64) #upper bounds of state
-        self.epi_len = 100
+        self.epi_len = kwargs.get('epi_len')
 
 
         #states
@@ -97,15 +97,15 @@ class RobotEnv(gym.Env):
            self.theta = ((self.theta + math.pi)%(2*math.pi))-math.pi
 
         #check if new position is within hard constraint
+        x_min,y_min = self.Lb[self.ep_t]
+        x_max,y_max = self.Ub[self.ep_t]
+
+        Rew_max = 100
         if self.lb_hard[0] <= self.x <= self.ub_hard[0] and self.lb_hard[1] <= self.y <= self.ub_hard[1] :
-            Rew_max = 100
-            #check if within funnel and reward accordingly
-            x_min,y_min = self.Lb[self.ep_t]
-            x_max,y_max = self.Ub[self.ep_t]
-            if (x_min <= self.x <= x_max and y_min <= self.y <= y_max):
-                reward = 2
-            else:
-                reward = -10
+            
+            robust1 = Rew_max - ((self.x - (x_min + x_max)/2)**2)*(4*Rew_max/((x_max-x_min)**2))
+            robust2 = Rew_max - ((self.y - (y_min + y_max)/2)**2)*(4*Rew_max/((y_max-y_min)**2))
+            reward = np.clip(min(robust1, robust2), -10,Rew_max)
         else:
             #terminate the episode or restart the episode?
             reward = -100
@@ -115,8 +115,12 @@ class RobotEnv(gym.Env):
 
         if self.ep_t == self.epi_len:
             done = True
-
-        info = {}
+        info ={}
+        info['x_min'] = x_min
+        info['x_max'] = x_max
+        info['y_min'] = y_min
+        info['y_max'] = y_max
+ 
         truncated = done
         return self.state, reward, done, truncated, info
 
