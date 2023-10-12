@@ -11,8 +11,8 @@ class RobotEnv(gym.Env):
         Must define self.acion_space and self.observation_space
         """
         #normalize action space
-        self.action_space = Box(low = np.array([-1,-1,-1]), #lower bounds for vel_x,vel_y,omega
-                                     high=np.array([1,1,1])) #upper bounds for vel_x,vel_y,omega
+        self.action_space = Box(low = np.array([-0.14,-0.12,-0.1]), #lower bounds for vel_x,vel_y,omega
+                                     high=np.array([3,5,1])) #upper bounds for vel_x,vel_y,omega
 
         self.observation_space = Box(low = np.array([-6.58,-4.63,-math.pi]), #lower bounds of state
                                       high=np.array([6.58,4.63,math.pi]),dtype=np.float64) #upper bounds of state
@@ -88,30 +88,30 @@ class RobotEnv(gym.Env):
         done = False
 
         #get new position
-        vel_x,vel_y,omega = 0.22*action[0], 0.22*action[1], 2.84*action[2]
+        vel_x,vel_y,omega = action[0], action[1], action[2]
         x_old,y_old,theta_old = self.x,self.y,self.theta
 
-        self.x = x_old + vel_x * self.time_int
-        self.y = y_old + vel_y * self.time_int
         self.theta = theta_old + omega * self.time_int
-        self.state = np.array([self.x,self.y,self.theta])
+        self.x = x_old + (vel_x * math.cos(self.theta) - vel_y * math.sin(self.theta)) * self.time_int
+        self.y = y_old + (vel_x * math.sin(self.theta) + vel_y * math.cos(self.theta)) * self.time_int
         # To keep the angle theta between -pi to pi
         if(self.theta > math.pi or self.theta < -math.pi ):
            self.theta = ((self.theta + math.pi)%(2*math.pi))-math.pi
+        self.state = np.array([self.x,self.y,self.theta])
 
         #check if new position is within hard constraint
         x_min,y_min = self.Lb[self.ep_t]
         x_max,y_max = self.Ub[self.ep_t]
 
-        Rew_max = 100
+        Rew_max = 1
         if self.lb_hard[0] <= self.x <= self.ub_hard[0] and self.lb_hard[1] <= self.y <= self.ub_hard[1] :
-            
+
             robust1 = Rew_max - ((self.x - (x_min + x_max)/2)**2)*(4*Rew_max/((x_max-x_min)**2))
             robust2 = Rew_max - ((self.y - (y_min + y_max)/2)**2)*(4*Rew_max/((y_max-y_min)**2))
-            reward = np.clip(min(robust1, robust2), -10,Rew_max)
+            reward = np.clip(min(robust1, robust2), -5,Rew_max)
         else:
             #terminate the episode or restart the episode?
-            reward = -100
+            reward = -20
             done = True
 
         self.ep_t +=1
@@ -123,7 +123,7 @@ class RobotEnv(gym.Env):
         info['x_max'] = x_max
         info['y_min'] = y_min
         info['y_max'] = y_max
- 
+
         truncated = done
         return self.state, reward, done, truncated, info
 

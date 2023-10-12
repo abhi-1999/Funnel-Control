@@ -39,6 +39,6 @@ if algorithm_name=="PPO":
     model = PPO("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+EpiLen+"EpiLen/")
 elif algorithm_name=="SAC":
     model = SAC("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+EpiLen+"EpiLen/")
-model.learn(total_timesteps=int(EpiLen)*100000)
+model.learn(total_timesteps=int(EpiLen)*1000000)
 model.save("./models/"+algorithm_name+"/model_"+algorithm_name+"_"+EpiLen+"EpiLen")
 
