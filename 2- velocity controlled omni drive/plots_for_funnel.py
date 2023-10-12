@@ -11,8 +11,8 @@ state_d = np.array(xd)
 
 plt.plot(state_d[:,0],state_d[:,1])
 
-x = -3.19
-y = 1.70
+x = -1.089
+y = 3
 theta = 0
 time_int = h
 xd=[[-1.5+5.8*math.cos(0.24*time_int*t+1.5), 3*math.sin(0.24*t*time_int+1.5)] for t in range(epi_len)]
