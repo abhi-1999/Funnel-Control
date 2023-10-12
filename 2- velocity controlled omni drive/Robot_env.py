@@ -38,7 +38,7 @@ class RobotEnv(gym.Env):
 
         #Funnel for soft constraint currently values are according to paper
         l = np.array([0.7,0.7])
-        ini_width = 0.2 #higher the value more is the initial funnel width
+        ini_width = 0.01 #higher the value more is the initial funnel width
         rho_f = np.array([0.2,0.2])
         rho_0 = np.array(abs(np.array([self.x,self.y])- self.state_d[0,:]) + ini_width )
         gamma = np.array([(rho_0 - rho_f)*np.exp(-l*self.time_int*t) + rho_f for t in range(self.epi_len)])
