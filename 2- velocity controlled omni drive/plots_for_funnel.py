@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import odeint
 
-epi_len = 10
+epi_len = input("Episode Length: ")
 h = 0.01
 xd=[[-1.5+5.8*math.cos(0.24*h*t+1.5), 3*math.sin(0.24*t*h+1.5)] for t in range(epi_len)]
 state_d = np.array(xd)
@@ -19,7 +19,7 @@ xd=[[-1.5+5.8*math.cos(0.24*time_int*t+1.5), 3*math.sin(0.24*t*time_int+1.5)] fo
 state_d = np.array(xd)
 l = np.array([0.7,0.7])
 rho_f = np.array([0.2,0.2])
-rho_0 = np.array(abs(np.array([x,y])- state_d[0,:]) + 0.01)
+rho_0 = np.array(abs(np.array([x,y])- state_d[0,:]) + 0.07)
 gamma = np.array([(rho_0 - rho_f)*np.exp(-l*time_int*t) + rho_f for t in range(epi_len)])
 gamma_x = np.array([(rho_0[0] - rho_f[0])*np.exp(-l[0]*time_int*t) + rho_f[0] for t in range(epi_len)])
 gamma_y = np.array([(rho_0[1] - rho_f[1])*np.exp(-l[1]*time_int*t) + rho_f[1] for t in range(epi_len)])

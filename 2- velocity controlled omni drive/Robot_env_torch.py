@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import torch
 import math
 import gymnasium as gym
@@ -19,24 +20,32 @@ class RobotEnv(gym.Env):
         self.epi_len = kwargs.get('epi_len')
 
 
-        #states
-        self.x = -3.19
-        self.y = 3
-        self.theta = 0
-        self.state = torch.tensor([self.x, self.y, self.theta], dtype=torch.float64)
+        
 
         # RL constants
         self.ep_t = 0
         self.time_int = 0.01
 
+        
+
         # Reference trajectory
         ref_trajectory = [[-1.5 + 5.8 * math.cos(0.24 * self.time_int * t + 1.5),
-                           5.8 * math.sin(0.24 * t * self.time_int + 1.5)] for t in range(self.epi_len)]
+                           3 * math.sin(0.24 * t * self.time_int + 1.5)] for t in range(self.epi_len)]
         self.state_d = torch.tensor(ref_trajectory, dtype=torch.float64)
 
+        #states
+        self.x = np.clip(self.state_d[0,0],self.observation_space.low[0],self.observation_space.high[0]) + random.uniform(-1,1)
+        self.y = np.clip(self.state_d[0,1],self.observation_space.low[1],self.observation_space.high[1]) + random.uniform(-1,1)
+        self.theta = random.uniform(self.observation_space.low[2], self.observation_space.high[2])
+        self.state = torch.tensor([self.x, self.y, self.theta], dtype=torch.float64)
+
+        self.funnel()
+        
+
+    def funnel(self):
         # Funnel for soft constraint currently values are according to paper
         l = torch.tensor([0.7, 0.7], dtype=torch.float64)
-        ini_width = 0.2  # higher the value more is the initial funnel width
+        ini_width = 0.07  # higher the value more is the initial funnel width
         rho_f = torch.tensor([0.2, 0.2], dtype=torch.float64)
         rho_0 = (torch.abs(torch.tensor([self.x, self.y], dtype=torch.float64) - self.state_d[0, :]) + ini_width).clone().detach()
         diff = rho_0 - rho_f
@@ -53,7 +62,7 @@ class RobotEnv(gym.Env):
         self.phi_ini_U = torch.tensor([0.0, 0.0], dtype=torch.float64)
 
         # Creating final funnel
-        mu = torch.tensor([3.0, 3.0], dtype=torch.float64)
+        mu = torch.tensor([5.0, 5.0], dtype=torch.float64)
         kc = torch.tensor([3.0, 3.0], dtype=torch.float64)
         self.lb_hard = torch.tensor([-6.58, -4.63], dtype=torch.float64)
         self.ub_hard = torch.tensor([6.58, 4.63], dtype=torch.float64)
@@ -86,23 +95,25 @@ class RobotEnv(gym.Env):
         done = False
 
         # Get new position
-        vel_x, vel_y, omega = 0.22 * action[0], 0.22 * action[1], 2.84 * action[2]
+        vel_x, vel_y, omega = 3 * action[0], 5 * action[1], 1 * action[2]
         x_old, y_old, theta_old = self.x, self.y, self.theta
 
-        self.x = x_old + vel_x * self.time_int
-        self.y = y_old + vel_y * self.time_int
         self.theta = theta_old + omega * self.time_int
+        self.x = x_old + (vel_x * math.cos(self.theta) - vel_y * math.sin(self.theta)) * self.time_int
+        self.y = y_old + (vel_x * math.sin(self.theta) + vel_y * math.cos(self.theta)) * self.time_int
+
         self.state = np.array([self.x, self.y, self.theta])
 
         # To keep the angle theta between -pi to pi
-        if (self.theta > math.pi or self.theta < -math.pi):
-            self.theta = ((self.theta + math.pi) % (2 * math.pi)) - math.pi
+        # if (self.theta > math.pi or self.theta < -math.pi):
+        #     self.theta = ((self.theta + math.pi) % (2 * math.pi)) - math.pi
 
         #check if new position is within hard constraint
         x_min,y_min = self.Lb[self.ep_t]
         x_max,y_max = self.Ub[self.ep_t]
 
-        Rew_max = 100
+        Rew_max = 1
+        clip = -5
         if self.lb_hard[0] <= self.x <= self.ub_hard[0] and self.lb_hard[1] <= self.y <= self.ub_hard[1] :
             
             #check if within funnel and reward accordingly
@@ -111,10 +122,10 @@ class RobotEnv(gym.Env):
 
             robust1 = Rew_max - ((self.x - (x_min + x_max)/2)**2)*(4*Rew_max/((x_max-x_min)**2))
             robust2 = Rew_max - ((self.y - (y_min + y_max)/2)**2)*(4*Rew_max/((y_max-y_min)**2))
-            reward = np.clip(min(robust1, robust2), -10,Rew_max)
+            reward = np.clip(min(robust1, robust2), clip,Rew_max)
         else:
             #terminate the episode or restart the episode?
-            reward = -100
+            reward = 0
             done = True
 
         self.ep_t +=1
@@ -135,13 +146,17 @@ class RobotEnv(gym.Env):
     
 
     def reset(self, seed=None, options=None):
-        self.x = -3.19
-        self.y = 3
-        self.theta = 0
+        self.x = np.clip(self.state_d[0,0],self.observation_space.low[0],self.observation_space.high[0]) + random.uniform(-1,1)
+        self.y = np.clip(self.state_d[0,1],self.observation_space.low[1],self.observation_space.high[1]) + random.uniform(-1,1)
+        self.theta = random.uniform(self.observation_space.low[2], self.observation_space.high[2])
         self.state = np.array([self.x, self.y, self.theta])
+
         self.ep_t = 0
-        x_max,y_max = self.Ub[self.ep_t]
-        x_min,y_min = self.Lb[self.ep_t]
+        self.funnel()
+        
+        x_max,y_max = self.Ub[0]
+        x_min,y_min = self.Lb[0]
+
         info ={}
         info['x_min'] = x_min
         info['x_max'] = x_max
