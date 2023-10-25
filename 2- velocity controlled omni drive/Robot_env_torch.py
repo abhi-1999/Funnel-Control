@@ -4,6 +4,7 @@ import torch
 import math
 import gymnasium as gym
 from gymnasium.spaces import Box
+import random
 from scipy.integrate import odeint
 class RobotEnv(gym.Env):
     def __init__(self,**kwargs):
@@ -34,8 +35,8 @@ class RobotEnv(gym.Env):
         self.state_d = torch.tensor(ref_trajectory, dtype=torch.float64)
 
         #states
-        self.x = np.clip(self.state_d[0,0],self.observation_space.low[0],self.observation_space.high[0]) + random.uniform(-1,1)
-        self.y = np.clip(self.state_d[0,1],self.observation_space.low[1],self.observation_space.high[1]) + random.uniform(-1,1)
+        self.x = random.uniform(self.observation_space.low[0],self.observation_space.high[0])
+        self.y = random.uniform(self.observation_space.low[1],self.observation_space.high[1]) 
         self.theta = random.uniform(self.observation_space.low[2], self.observation_space.high[2])
         self.state = torch.tensor([self.x, self.y, self.theta], dtype=torch.float64)
 
@@ -47,7 +48,8 @@ class RobotEnv(gym.Env):
         l = torch.tensor([0.7, 0.7], dtype=torch.float64)
         ini_width = 0.07  # higher the value more is the initial funnel width
         rho_f = torch.tensor([0.2, 0.2], dtype=torch.float64)
-        rho_0 = (torch.abs(torch.tensor([self.x, self.y], dtype=torch.float64) - self.state_d[0, :]) + ini_width).clone().detach()
+        # rho_0 = (torch.abs(torch.tensor([self.x, self.y], dtype=torch.float64) - self.state_d[0, :]) + ini_width).clone().detach()
+        rho_0 = torch.abs(self.max_initial_funnel_width()).clone().detach()
         diff = rho_0 - rho_f
 
         gamma = torch.tensor([])
@@ -74,17 +76,29 @@ class RobotEnv(gym.Env):
             phi_sol_L = torch.abs(torch.tensor(phi_Lo[-1]))  # this condition to be checked i.e, psi(modification signal) is always positive
             phi_U = odeint(self.bound, self.phi_ini_U, t1, args=(self.lb_hard, self.ub_soft[i, :], mu, kc))
             phi_sol_U = torch.abs(torch.tensor(phi_U[-1]))  # this condition to be checked i.e, psi(modification signal) is always positive
+
             v = 10.0
+
             lower_bo = torch.log(torch.exp(v * (self.lb_soft[i, :] - phi_sol_L)) + torch.exp(v * self.lb_hard)) / v
             upper_bo = -torch.log(torch.exp(-v * (self.ub_soft[i, :] + phi_sol_U)) + torch.exp(-v * self.ub_hard)) / v
             self.phi_ini_L = phi_sol_L  # will change according to comment in line 55
-            self.phi_ini_U = phi_sol_U
-            # self.phi_L.append(phi_sol_L)
-            # self.phi_U.append(phi_sol_U)
+            self.phi_ini_U = phi_sol_U            
             self.Lb.append(lower_bo)
             self.Ub.append(upper_bo)
-            self.j.append(i)
+           
+    def max_initial_funnel_width(self):
+        rho_0_point = [np.array([self.observation_space.low[0], self.observation_space.low[1]]),
+                       np.array([self.observation_space.low[0], self.observation_space.high[1]]),
+                       np.array([self.observation_space.high[0], self.observation_space.low[1]]),
+                       np.array([self.observation_space.high[0], self.observation_space.high[1]])]
 
+        d1 = np.linalg.norm(self.state_d[0] - rho_0_point[0])
+        d2 = np.linalg.norm(self.state_d[0] - rho_0_point[1])
+        d3 = np.linalg.norm(self.state_d[0] - rho_0_point[2])
+        d4 = np.linalg.norm(self.state_d[0] - rho_0_point[3])
+
+        return rho_0_point[np.argmax([d1,d2,d3,d4])]
+        
     def bound(self, phi, t, lb, ub, mu, kc):
         eta = ub - lb
         dphi_dt = 0.5 * (1 - torch.sign(eta - mu)) * (1 / (eta + phi)) - kc * phi
