@@ -87,17 +87,14 @@ class RobotEnv(gym.Env):
             self.Ub.append(upper_bo)
            
     def max_initial_funnel_width(self):
-        rho_0_point = [np.array([self.observation_space.low[0], self.observation_space.low[1]]),
-                       np.array([self.observation_space.low[0], self.observation_space.high[1]]),
-                       np.array([self.observation_space.high[0], self.observation_space.low[1]]),
-                       np.array([self.observation_space.high[0], self.observation_space.high[1]])]
+        rho_0_point = [torch.tensor([self.observation_space.low[0], self.observation_space.low[1]]),
+                       torch.tensor([self.observation_space.low[0], self.observation_space.high[1]]),
+                       torch.tensor([self.observation_space.high[0], self.observation_space.low[1]]),
+                       torch.tensor([self.observation_space.high[0], self.observation_space.high[1]])]
 
-        d1 = np.linalg.norm(self.state_d[0] - rho_0_point[0])
-        d2 = np.linalg.norm(self.state_d[0] - rho_0_point[1])
-        d3 = np.linalg.norm(self.state_d[0] - rho_0_point[2])
-        d4 = np.linalg.norm(self.state_d[0] - rho_0_point[3])
+        distances = [torch.norm(self.state_d[0] - point) for point in rho_0_point]
 
-        return rho_0_point[np.argmax([d1,d2,d3,d4])]
+        return rho_0_point[distanceas.index(max(distances))]
         
     def bound(self, phi, t, lb, ub, mu, kc):
         eta = ub - lb
