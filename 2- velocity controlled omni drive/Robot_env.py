@@ -52,9 +52,10 @@ class RobotEnv(gym.Env):
         rho_f = np.array([0.2,0.2])
         rho_0 = abs(self.max_initial_funnel_width()) #IS IT REQUIRED TO ADD INITIAL WIDTH?
 
-        gamma = np.array([(rho_0 - rho_f)*np.exp(-l*self.time_int*t) + rho_f for t in range(ref_traj_length)])
-        self.lb_soft = self.state_d - gamma
-        self.ub_soft = self.state_d + gamma
+        gamma_upp = np.array([((rho_0 - self.state_d[0]) - rho_f)*np.exp(-l*self.time_int*t) + rho_f for t in range(ref_traj_length)])
+        gamma_low = np.array([((rho_0 + self.state_d[0]) - rho_f)*np.exp(-l*self.time_int*t) + rho_f for t in range(ref_traj_length)])
+        self.lb_soft = self.state_d - gamma_low
+        self.ub_soft = self.state_d + gamma_upp
         self.phi_ini_L = [0,0]
         self.phi_ini_U = [0,0]
 
@@ -87,7 +88,7 @@ class RobotEnv(gym.Env):
                        np.array([self.observation_space.high[0], self.observation_space.low[1]]),
                        np.array([self.observation_space.high[0], self.observation_space.high[1]])]
 
-        distances = [(np.linalg.norm(state_d[0] - point) for point in rho_0_point]
+        distances = [np.linalg.norm(self.state_d[0] - point) for point in rho_0_point]
 
         return rho_0_point[np.argmax(distances)]
  

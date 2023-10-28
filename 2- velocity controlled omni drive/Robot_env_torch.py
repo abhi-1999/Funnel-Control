@@ -94,7 +94,7 @@ class RobotEnv(gym.Env):
 
         distances = [torch.norm(self.state_d[0] - point) for point in rho_0_point]
 
-        return rho_0_point[distanceas.index(max(distances))]
+        return rho_0_point[distances.index(max(distances))]
         
     def bound(self, phi, t, lb, ub, mu, kc):
         eta = ub - lb
