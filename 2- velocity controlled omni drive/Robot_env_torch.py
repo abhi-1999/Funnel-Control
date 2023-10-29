@@ -123,23 +123,12 @@ class RobotEnv(gym.Env):
         x_min,y_min = self.Lb[self.ep_t]
         x_max,y_max = self.Ub[self.ep_t]
 
-        Rew_max = 1
-        clip = -5
-        if self.lb_hard[0] <= self.x <= self.ub_hard[0] and self.lb_hard[1] <= self.y <= self.ub_hard[1] :
-            
-            #check if within funnel and reward accordingly
+        
 
- 
-
-            robust1 = Rew_max - ((self.x - (x_min + x_max)/2)**2)*(4*Rew_max/((x_max-x_min)**2))
-            robust2 = Rew_max - ((self.y - (y_min + y_max)/2)**2)*(4*Rew_max/((y_max-y_min)**2))
-            reward = np.clip(min(robust1, robust2), clip,Rew_max)
-        else:
-            #terminate the episode or restart the episode?
-            reward = 0
-            done = True
+        reward = self.reward_f(x_min,x_max,y_min,y_max)
 
         self.ep_t +=1
+
 
         if self.ep_t == self.epi_len:
             done = True
@@ -150,15 +139,30 @@ class RobotEnv(gym.Env):
         info['y_max'] = y_max
         
         truncated = done
-        return self.state, reward.item(), done, truncated, info
+        return self.state, reward, done, truncated, info
+    
+    def reward_f(self,x_min,x_max,y_min,y_max):
+        max_neg_rew = -5    
 
+        width_x = x_max - x_min
+        width_y = y_max - y_min
+
+        Rew_max_x = 2 * math.exp(-0.2*width_x)
+        robust1 = Rew_max_x - ((self.x - (x_min + x_max)/2)**2)*(4*Rew_max_x/((x_max-x_min)**2))
+
+        Rew_max_y = 2 * math.exp(-0.2*width_y)
+        robust2 = Rew_max_y - ((self.y - (y_min + y_max)/2)**2)*(4*Rew_max_y/((y_max-y_min)**2))
+
+        rew = np.clip(min(robust1, robust2), max_neg_rew, max(Rew_max_x,Rew_max_y))
+        return rew
+    
     def render(self, mode="human"):
         pass
     
 
     def reset(self, seed=None, options=None):
-        self.x = np.clip(self.state_d[0,0],self.observation_space.low[0],self.observation_space.high[0]) + random.uniform(-1,1)
-        self.y = np.clip(self.state_d[0,1],self.observation_space.low[1],self.observation_space.high[1]) + random.uniform(-1,1)
+        self.x = random.uniform(self.observation_space.low[0],self.observation_space.high[0])
+        self.y = random.uniform(self.observation_space.low[1],self.observation_space.high[1]) 
         self.theta = random.uniform(self.observation_space.low[2], self.observation_space.high[2])
         self.state = np.array([self.x, self.y, self.theta])
 

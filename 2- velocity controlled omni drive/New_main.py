@@ -29,7 +29,7 @@ else:
 algorithm_name = input("algorithm name: ")
 EpiLen = input("Episode Length: ")
 
-env = make_vec_env("RobotEnv-v0", n_envs=12, seed=0, env_kwargs={"epi_len": int(EpiLen)})
+env = make_vec_env("RobotEnv-v0", n_envs=7, seed=0, env_kwargs={"epi_len": int(EpiLen)})
 #env = gym.make("RobotEnv-v0", env_kwargs={"epi_len": EpiLen})
 if algorithm_name=="PPO":
     model = PPO("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+EpiLen+"EpiLen/")
@@ -37,7 +37,7 @@ elif algorithm_name=="SAC":
     model = SAC("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+EpiLen+"EpiLen/")
 best=0
 for i in range(100):
-    model.learn(total_timesteps=int(EpiLen)*1000)
+    model.learn(total_timesteps=int(EpiLen)*10000)
     temp = evaluate_policy(model,model.env,n_eval_episodes=5)
     if (temp[0]>best):
         # print("best")

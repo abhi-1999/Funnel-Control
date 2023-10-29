@@ -125,32 +125,36 @@ class RobotEnv(gym.Env):
         x_min,y_min = self.Lb[self.ep_t]
         x_max,y_max = self.Ub[self.ep_t]
 
-        max_neg_rew = -5    
+        reward = self.reward_f(x_min,x_max,y_min,y_max)
 
-        Rew_max_x = abs(x_max - x_min) * 5
-        robust1 = Rew_max_x - ((self.x - (x_min + x_max)/2)**2)*(4*Rew_max_x/((x_max-x_min)**2))
-
-        Rew_max_y = abs(y_max - y_min) * 5
-        robust2 = Rew_max_y - ((self.y - (y_min + y_max)/2)**2)*(4*Rew_max_y/((y_max-y_min)**2))
-
-        reward = np.clip(min(robust1, robust2), max_neg_rew, max(Rew_max_x,Rew_max_y))
-
-      
         self.ep_t +=1
+
+
         if self.ep_t == self.epi_len:
             done = True
-
         info ={}
         info['x_min'] = x_min
         info['x_max'] = x_max
         info['y_min'] = y_min
         info['y_max'] = y_max
-
+        
         truncated = done
-
         return self.state, reward, done, truncated, info
+    
+    def reward_f(self,x_min,x_max,y_min,y_max):
+        max_neg_rew = -5    
 
- 
+        width_x = x_max - x_min
+        width_y = y_max - y_min
+
+        Rew_max_x = 2 * math.exp(-0.2*width_x)
+        robust1 = Rew_max_x - ((self.x - (x_min + x_max)/2)**2)*(4*Rew_max_x/((x_max-x_min)**2))
+
+        Rew_max_y = 2 * math.exp(-0.2*width_y)
+        robust2 = Rew_max_y - ((self.y - (y_min + y_max)/2)**2)*(4*Rew_max_y/((y_max-y_min)**2))
+
+        rew = np.clip(min(robust1, robust2), max_neg_rew, max(Rew_max_x,Rew_max_y))
+        return rew
 
     def render(self, mode="human"):
 
