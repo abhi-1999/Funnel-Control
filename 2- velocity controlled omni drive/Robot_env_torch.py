@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import torch
+import torch.cuda
 import math
 import gymnasium as gym
 from gymnasium.spaces import Box
@@ -32,34 +33,38 @@ class RobotEnv(gym.Env):
         # Reference trajectory
         ref_trajectory = [[-1.5 + 5.8 * math.cos(0.24 * self.time_int * t + 1.5),
                            3 * math.sin(0.24 * t * self.time_int + 1.5)] for t in range(self.epi_len)]
-        self.state_d = torch.tensor(ref_trajectory, dtype=torch.float64)
+        self.state_d = torch.tensor(ref_trajectory, dtype=torch.float64).cuda()
 
         #states
         self.x = random.uniform(self.observation_space.low[0],self.observation_space.high[0])
         self.y = random.uniform(self.observation_space.low[1],self.observation_space.high[1]) 
         self.theta = random.uniform(self.observation_space.low[2], self.observation_space.high[2])
-        self.state = torch.tensor([self.x, self.y, self.theta], dtype=torch.float64)
+        self.state = torch.tensor([self.x, self.y, self.theta], dtype=torch.float64).cuda()
 
         self.funnel()
         
 
     def funnel(self):
         # Funnel for soft constraint currently values are according to paper
-        l = torch.tensor([0.7, 0.7], dtype=torch.float64)
+        l = torch.tensor([0.7, 0.7], dtype=torch.float64).cuda()
         ini_width = 0.07  # higher the value more is the initial funnel width
-        rho_f = torch.tensor([0.2, 0.2], dtype=torch.float64)
+        rho_f = torch.tensor([0.2, 0.2], dtype=torch.float64).cuda()
         # rho_0 = (torch.abs(torch.tensor([self.x, self.y], dtype=torch.float64) - self.state_d[0, :]) + ini_width).clone().detach()
         rho_0 = torch.abs(self.max_initial_funnel_width()).clone().detach()
         diff = rho_0 - rho_f
 
-        gamma = torch.tensor([])
+        gamma_upp = torch.tensor([]).cuda()
+        gamma_low = torch.tensor([]).cuda()
         for _ in range(self.epi_len):
-            x = diff * torch.exp(-l*self.time_int*_) + rho_f
-            gamma = torch.cat((gamma, x.unsqueeze(0)))
+            exp_term =  torch.exp(-l*self.time_int*_) + rho_f
+            x = (diff - self.state_d[0]) * exp_term
+            y = (diff + self.state_d[0]) * exp_term
+            gamma_upp = torch.cat((gamma_upp, x.unsqueeze(0)))
+            gamma_low = torch.cat((gamma_low, y.unsqueeze(0)))
 
         #gamma_tensor = (rho_0.unsqueeze(0) - rho_f) * torch.exp(-l * time_int * torch.arange(epi_len, dtype=torch.float64).unsqueeze(1)) + rho_f
-        self.lb_soft = self.state_d - gamma
-        self.ub_soft = self.state_d + gamma
+        self.lb_soft = self.state_d - gamma_low
+        self.ub_soft = self.state_d + gamma_upp
         self.phi_ini_L = torch.tensor([0.0, 0.0], dtype=torch.float64)
         self.phi_ini_U = torch.tensor([0.0, 0.0], dtype=torch.float64)
 
@@ -113,15 +118,15 @@ class RobotEnv(gym.Env):
         self.x = x_old + (vel_x * math.cos(self.theta) - vel_y * math.sin(self.theta)) * self.time_int
         self.y = y_old + (vel_x * math.sin(self.theta) + vel_y * math.cos(self.theta)) * self.time_int
 
-        self.state = np.array([self.x, self.y, self.theta])
+        self.state = torch.tensor([self.x, self.y, self.theta], dtype=torch.float64).cuda()
 
         # To keep the angle theta between -pi to pi
         # if (self.theta > math.pi or self.theta < -math.pi):
         #     self.theta = ((self.theta + math.pi) % (2 * math.pi)) - math.pi
 
         #check if new position is within hard constraint
-        x_min,y_min = self.Lb[self.ep_t]
-        x_max,y_max = self.Ub[self.ep_t]
+        x_min,y_min = self.Lb[self.ep_t].cuda()
+        x_max,y_max = self.Ub[self.ep_t].cuda()
 
         
 
@@ -139,7 +144,7 @@ class RobotEnv(gym.Env):
         info['y_max'] = y_max
         
         truncated = done
-        return self.state, reward, done, truncated, info
+        return self.state.detach().cpu().numpy(), reward, done, truncated, info
     
     def reward_f(self,x_min,x_max,y_min,y_max):
         max_neg_rew = -5    
@@ -153,7 +158,7 @@ class RobotEnv(gym.Env):
         Rew_max_y = 2 * math.exp(-0.2*width_y)
         robust2 = Rew_max_y - ((self.y - (y_min + y_max)/2)**2)*(4*Rew_max_y/((y_max-y_min)**2))
 
-        rew = np.clip(min(robust1, robust2), max_neg_rew, max(Rew_max_x,Rew_max_y))
+        rew = torch.clamp(min(robust1, robust2), max_neg_rew, max(Rew_max_x, Rew_max_y))
         return rew
     
     def render(self, mode="human"):
@@ -164,10 +169,10 @@ class RobotEnv(gym.Env):
         self.x = random.uniform(self.observation_space.low[0],self.observation_space.high[0])
         self.y = random.uniform(self.observation_space.low[1],self.observation_space.high[1]) 
         self.theta = random.uniform(self.observation_space.low[2], self.observation_space.high[2])
-        self.state = np.array([self.x, self.y, self.theta])
+        self.state = torch.tensor([self.x, self.y, self.theta], dtype=torch.float64).cuda()
 
         self.ep_t = 0
-        self.funnel()
+        
         
         x_max,y_max = self.Ub[0]
         x_min,y_min = self.Lb[0]
@@ -178,7 +183,7 @@ class RobotEnv(gym.Env):
         info['y_min'] = y_min
         info['y_max'] = y_max
 
-        return self.state, info
+        return self.state.detach().cpu().numpy(), info
 
     def close(self):
         pass
