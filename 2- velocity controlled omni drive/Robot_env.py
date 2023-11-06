@@ -41,6 +41,16 @@ class RobotEnv(gym.Env):
 
         self.funnel()
 
+        
+        self.ini_width_x = abs(self.Ub[0][0] - self.Lb[0][0])
+        self.ini_width_y = abs(self.Ub[0][1] - self.Lb[0][1])
+
+        
+
+
+
+    
+
  
 
     def funnel(self):
@@ -81,6 +91,7 @@ class RobotEnv(gym.Env):
 
             self.Lb.append(lower_bo)
             self.Ub.append(upper_bo)
+
 
     def max_initial_funnel_width(self):
         rho_0_point = [np.array([self.observation_space.low[0], self.observation_space.low[1]]),
@@ -125,7 +136,7 @@ class RobotEnv(gym.Env):
         x_min,y_min = self.Lb[self.ep_t]
         x_max,y_max = self.Ub[self.ep_t]
 
-        reward = self.reward_f(x_min,x_max,y_min,y_max)
+        reward = self.reward_scaling_of_line(x_min,x_max,y_min,y_max)
 
         self.ep_t +=1
 
@@ -141,7 +152,7 @@ class RobotEnv(gym.Env):
         truncated = done
         return self.state, reward, done, truncated, info
     
-    def reward_f(self,x_min,x_max,y_min,y_max):
+    def reward_exponential_decay_of_width(self,x_min,x_max,y_min,y_max):
         max_neg_rew = -5    
 
         width_x = x_max - x_min
@@ -154,6 +165,30 @@ class RobotEnv(gym.Env):
         robust2 = Rew_max_y - ((self.y - (y_min + y_max)/2)**2)*(4*Rew_max_y/((y_max-y_min)**2))
 
         rew = np.clip(min(robust1, robust2), max_neg_rew, max(Rew_max_x,Rew_max_y))
+        return rew
+    
+    def reward_scaling_of_line(self,x_min,x_max,y_min,y_max):
+        
+        if x_min <= self.x <= x_max and y_min <= self.y <= y_max:
+            curr_width_x = abs(x_max -x_min)
+            scale_x = self.ini_width_x/curr_width_x
+            
+            dist_x = abs(self.x - (x_max+x_min)/2)       
+
+            robust1   = (1/(dist_x + 1e-1)) 
+
+            
+            curr_width_y = abs(y_max -y_min)
+            scale_y = self.ini_width_y/curr_width_y
+            
+            dist_y = abs(self.y - (y_max + y_min)/2)       
+
+            robust2   = (1/(dist_y + 1e-1))
+
+            rew = min(robust1, robust2)
+        else:
+            rew = -5        
+        
         return rew
 
     def render(self, mode="human"):

@@ -6,6 +6,7 @@ from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.evaluation import evaluate_policy
 from gymnasium.envs.registration import register
+import time
 # import Robot_env
 
 Use_torch = int(input("want to use torch (0-no , 1-yes): "))
@@ -37,7 +38,10 @@ elif algorithm_name=="SAC":
     model = SAC("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+EpiLen+"EpiLen/")
 best=0
 for i in range(100):
+    # start = time.time()
     model.learn(total_timesteps=int(EpiLen)*10000)
+    # end = time.time()
+    # print((end - start)* 10**3, "ms")
     temp = evaluate_policy(model,model.env,n_eval_episodes=5)
     if (temp[0]>best):
         # print("best")
