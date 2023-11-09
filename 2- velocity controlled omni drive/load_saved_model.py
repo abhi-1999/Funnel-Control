@@ -6,7 +6,6 @@ from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.evaluation import evaluate_policy
 from gymnasium.envs.registration import register
-import time
 # import Robot_env
 
 Use_torch = int(input("want to use torch (0-no , 1-yes): "))
@@ -30,18 +29,16 @@ else:
 algorithm_name = input("algorithm name: ")
 EpiLen = input("Episode Length: ")
 
-env = make_vec_env("RobotEnv-v0", n_envs=15, seed=0, env_kwargs={"epi_len": int(EpiLen)})
-#env = gym.make("RobotEnv-v0", env_kwargs={"epi_len": EpiLen})
+env = make_vec_env("RobotEnv-v0", n_envs=12, seed=0, env_kwargs={"epi_len": int(EpiLen)})
+model_path = "/home/abhijeet/Funnel-Control/2- velocity controlled omni drive/pre_saved_models/SAC/best_model_SAC_600EpiLen"
 if algorithm_name=="PPO":
-    model = PPO("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+EpiLen+"EpiLen/")
+    model = PPO.load(model_path, env=env)
 elif algorithm_name=="SAC":
-    model = SAC("MlpPolicy",env,verbose=1,tensorboard_log="./tensorboard/"+algorithm_name+"/tensorboard_"+algorithm_name+"_"+EpiLen+"EpiLen/")
-best=0
+    model = SAC.load(model_path, env=env)
+
+best=-1000
 for i in range(100):
-    # start = time.time()
-    model.learn(total_timesteps=int(EpiLen)*10000)
-    # end = time.time()
-    # print((end - start)* 10**3, "ms")
+    model.learn(total_timesteps=int(EpiLen)*1000)
     temp = evaluate_policy(model,model.env,n_eval_episodes=5)
     if (temp[0]>best):
         # print("best")
