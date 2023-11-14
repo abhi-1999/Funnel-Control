@@ -29,7 +29,7 @@ class RobotEnv(gym.Env):
         self.time_int = 0.01       
 
         #reference trajectory
-        ref_trajectory=[[1.3+ 0.4*np.cos(1.9*self.time_int*t+1.5), 3.5+0.6*np.sin(1.9*self.time_int*t+1.5)] for t in range(self.epi_len)]
+        ref_trajectory=[[1.5+ 0.4*np.cos(1.9*self.time_int*t+1.5), 3.5+0.4*np.sin(1.9*self.time_int*t+1.5)] for t in range(self.epi_len)]
         self.state_d = np.array(ref_trajectory)       
 
         #states
@@ -67,16 +67,6 @@ class RobotEnv(gym.Env):
         plt.ylim([2.5,4.5])
         plt.grid()
         plt.show()
-
-        
-        
-        
-
-
-
-    
-
- 
 
     def funnel(self):
 
@@ -162,7 +152,7 @@ class RobotEnv(gym.Env):
         x_min,y_min = self.Lb[self.ep_t]
         x_max,y_max = self.Ub[self.ep_t]
 
-        reward = self.reward_circular(x_min,x_max,y_min,y_max)
+        reward = self.zero_one(x_min,x_max,y_min,y_max)
 
         self.ep_t +=1
 
@@ -221,11 +211,19 @@ class RobotEnv(gym.Env):
         else:
             rew = -1
         return rew
+    
+    def zero_one(self, x_min,x_max,y_min,y_max):
+        if x_min <= self.x <= x_max and y_min <= self.y <= y_max:
+            rew = 1
+        else:
+            rew = 0
+        return rew
+
 
     def render(self, mode="human"):
 
         pass
-
+    
  
 
     def reset(self,seed = None,options=None):
